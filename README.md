@@ -1,36 +1,123 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zima Hotspot UI
 
-## Getting Started
+Painel em **Next.js 16 + React 19 + Tailwind CSS 4** para gerenciar o hotspot
+Wi-Fi através da API FastAPI do projeto (`server/`).
 
-First, run the development server:
+## O que o painel faz
+
+- Mostra o **status em tempo real** do hotspot (ativo/inativo, IP, interface,
+  perfil e estado do dispositivo), com atualização automática a cada 5 s.
+- Exibe a **saúde da API** no topo (`API online`, `nmcli indisponível` ou
+  `API offline`).
+- **Cria e ativa** um hotspot com SSID, senha, interface, perfil, banda
+  (2,4/5 GHz), canal e opção de sudo.
+- **Liga** um perfil existente, **desliga** mantendo o perfil e **remove** o
+  hotspot apagando o perfil do NetworkManager (com confirmação).
+- Gera **senha forte** com um clique.
+- Mostra **QR Code** de conexão, dados de rede (IP, gateway, MAC, faixa DHCP)
+  e botões de copiar SSID, senha e payload do QR Code.
+- Permite configurar **URL da API** e **API key** (`X-API-Key`) em runtime;
+  as preferências ficam no `localStorage`.
+
+## Requisitos
+
+- Node.js 20+ (recomendado 22).
+- API rodando (por padrão em `http://localhost:6565`).
+
+## Como rodar
+
+Na pasta `server/`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+python main.py
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Na pasta `ui/`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Abra [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Configuração
 
-To learn more about Next.js, take a look at the following resources:
+Crie/edite `.env.local` (ou use o `.env.example`):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:6565
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Também é possível trocar a URL e informar a API key pelo botão
+**Configurações** no painel, sem reiniciar o app. A chave só é necessária se
+`API_KEY` estiver definida no servidor.
 
-## Deploy on Vercel
+> `NEXT_PUBLIC_*` é embutida no build. Para produção, defina a variável antes de
+> `npm run build`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Estrutura
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/
+│   ├── layout.tsx          # metadata, fonte e tema
+│   ├── page.tsx            # composição da página
+│   └── globals.css         # tema, scrollbar e animações
+├── components/
+│   ├── hotspot/
+│   │   ├── hotspot-dashboard.tsx   # orquestra estado e ações
+│   │   ├── dashboard-header.tsx    # logo, health pill, docs
+│   │   ├── status-card.tsx         # status + polling
+│   │   ├── hotspot-form.tsx        # criação do hotspot
+│   │   ├── control-panel.tsx       # ligar/desligar/remover
+│   │   ├── connection-details.tsx  # QR Code e dados da rede
+│   │   ├── api-settings-dialog.tsx
+│   │   └── confirm-dialog.tsx
+│   ├── ui/
+│   │   ├── button.tsx
+│   │   ├── field.tsx
+│   │   ├── modal.tsx
+│   │   └── toast.tsx
+│   └── icons.tsx
+├── hooks/
+│   ├── use-hotspot.ts       # polling, mutações e erros
+│   ├── use-api-config.ts    # URL/API key persistidas
+│   └── use-toasts.ts
+└── lib/
+    ├── api.ts               # client tipado da API
+    ├── types.ts             # contratos espelhando o backend
+    ├── hotspot-form.ts      # defaults e validação do formulário
+    └── utils.ts
+```
+
+Fluxo: **componentes → useHotspot → HotspotApi → FastAPI (`/api/v1/hotspot`)**.
+
+## Endpoints usados
+
+| Ação no painel | Requisição |
+| --- | --- |
+| Status / polling | `GET /api/v1/hotspot/status` |
+| Saúde | `GET /health` |
+| Criar | `POST /api/v1/hotspot` |
+| Ligar | `POST /api/v1/hotspot/start` |
+| Desligar | `POST /api/v1/hotspot/stop` |
+| Remover | `DELETE /api/v1/hotspot?delete_profile=true` |
+
+## Scripts
+
+```bash
+npm run dev     # desenvolvimento (Turbopack)
+npm run build   # build de produção
+npm run start   # servir o build
+npm run lint    # ESLint
+```
+
+## Observações
+
+- O servidor já libera CORS por padrão (`CORS_ORIGINS=*`). Em produção,
+  restrinja essa variável no backend.
+- Se a UI for servida via HTTPS, a API também precisa estar em HTTPS para
+  evitar bloqueio de mixed content.
+- O `nmcli` só existe em Linux com NetworkManager. Em outros sistemas a API
+  responde `503` e o painel sinaliza `nmcli indisponível`.
