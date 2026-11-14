@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 import { pythonFetch } from "@/lib/server/python-api";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Lightweight health probe for the UI. It never returns the API key and is
  * safe to call from the login screen.

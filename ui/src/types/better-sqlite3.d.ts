@@ -14,10 +14,19 @@ declare module "better-sqlite3" {
       all(...params: unknown[]): unknown[];
       iterate(...params: unknown[]): IterableIterator<unknown>;
     }
+    interface Transaction<F extends (...args: never[]) => unknown> {
+      (...args: Parameters<F>): ReturnType<F>;
+      deferred(...args: Parameters<F>): ReturnType<F>;
+      immediate(...args: Parameters<F>): ReturnType<F>;
+      exclusive(...args: Parameters<F>): ReturnType<F>;
+    }
     interface Database {
       prepare(sql: string): Statement;
       exec(sql: string): void;
       pragma(source: string, options?: { simple?: boolean }): unknown;
+      transaction<F extends (...args: never[]) => unknown>(
+        fn: F,
+      ): Transaction<F>;
       close(): void;
       readonly open: boolean;
     }

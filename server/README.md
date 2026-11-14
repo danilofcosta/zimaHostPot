@@ -357,8 +357,9 @@ socket `/run/dbus/system_bus_socket` presente.
 
 ```bash
 # na raiz do projeto
-[ -f server/.env ] || cp server/.env.example server/.env
-# edite server/.env se precisar (API_KEY, CORS_ORIGINS, DEFAULT_INTERFACE...)
+cp .env.example .env
+# edite .env: API_KEY, BETTER_AUTH_SECRET, HOTSPOT_ADMIN_PASSWORD,
+# CORS_ORIGINS e (opcional) DEFAULT_INTERFACE
 
 docker compose up -d --build
 docker compose logs -f
@@ -376,9 +377,10 @@ O `compose.yml` usa:
 - `user: "0:0"` para o polkit autorizar o `nmcli` — é o equivalente ao
   `sudo` que você usava ao rodar o servidor direto no host.
 
-> O `.env` da raiz (`HOTSPOT_ADMIN_PASSWORD`) era do `hotspot.py` antigo e não
-> é usado pela API nova. A configuração do container vem de `server/.env`;
-> para exigir chave nas requisições, defina `API_KEY` nele.
+> O `.env` da raiz é lido pelo `docker compose` e alimenta os dois serviços:
+> `API_KEY`/`CORS_ORIGINS`/`DEFAULT_INTERFACE` na API, e
+> `BETTER_AUTH_SECRET`/`HOTSPOT_ADMIN_PASSWORD` na UI. Fora do Docker, a API
+> continua lendo `server/.env` quando executada diretamente.
 
 Teste o backend de rede dentro do container:
 

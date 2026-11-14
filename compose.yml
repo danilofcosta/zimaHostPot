@@ -23,6 +23,11 @@ services:
       HOST: 0.0.0.0
       PORT: "6565"
       ENVIRONMENT: production
+      # Produção exige chave e CORS explícito (ver server/core/config.py).
+      # Preencha o .env da raiz a partir do .env.example.
+      API_KEY: ${API_KEY:?Defina API_KEY no arquivo .env da raiz}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      DEFAULT_INTERFACE: ${DEFAULT_INTERFACE:-wlan0}
       # Socket do system bus do host, usado pelo nmcli para falar com o
       # NetworkManager que roda no ZimaOS.
       DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
@@ -68,6 +73,37 @@ services:
 
     ports:
       - "8080:80"
+
+    environment:
+      # Segredo do Better Auth. Sem ele a UI usaria o valor de desenvolvimento.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Defina BETTER_AUTH_SECRET no arquivo .env da raiz}
+      # Opcional: define a URL pública do painel. Vazio = deriva do host da
+      # requisição, o que funciona por qualquer IP da LAN.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      # Mesma chave do serviço Python (o BFF anexa o header X-API-Key).
+      API_KEY: ${API_KEY:?Defina API_KEY no arquivo .env da raiz}
+      # A API roda em network_mode: host. No Linux/ZimaOS o alias abaixo
+      # (host-gateway) alcança a porta 6565 do host. No Docker Desktop o host
+      # real não vê a rede do container: sobrescreva no .env com o gateway da
+      # rede do compose (ex.: http://172.18.0.1:6565).
+      HOTSPOT_API_URL: ${HOTSPOT_API_URL:-http://host.docker.internal:6565}
+      DATABASE_PATH: /app/data/database.db
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-casaos}
+      INITIAL_ADMIN_PASSWORD: ${HOTSPOT_ADMIN_PASSWORD:-}
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # A UI compartilha o SQLite criado pela API (que roda como root no host).
+    # Em Linux/ZimaOS, o bind mount pertence ao root, então a UI também roda
+    # como root; caso contrário o better-sqlite3 não consegue criar os arquivos
+    # WAL/SHM ao lado do banco. Em troca, a imagem deixa de usar o usuário
+    # `node` (definido no Dockerfile.ui) quando executada pelo compose.
+    user: "0:0"
+
+    volumes:
+      # Banco SQLite compartilhado com a API Python (schema em server/db).
+      - ./server/data:/app/data
 
     # Sem env_file do server/: a UI não lê segredos da API em runtime, e o
     # `PORT=6565` do server/.env sobrescreveria a porta 80 da imagem.

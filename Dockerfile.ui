@@ -11,6 +11,14 @@ FROM node:${NODE_VERSION} AS deps
 
 WORKDIR /app
 
+# better-sqlite3 13 compila o binding nativo do source (não há mais binário
+# pronto no pacote), então o estágio de dependências precisa de Python e de um
+# toolchain C++. Fica só neste estágio: a imagem final continua slim.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends python3 make g++; \
+    rm -rf /var/lib/apt/lists/*
+
 # Copia só os manifests para aproveitar o cache de layers.
 COPY ui/package.json ui/package-lock.json ./
 
@@ -24,6 +32,11 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY ui/ ./
+
+# O BFF aplica o schema compartilhado (server/db/schema.sql) na primeira
+# conexão, inclusive durante o build (coleta de dados das rotas). O caminho
+# `/app/server/db/schema.sql` está na lista de candidatos de db.ts.
+COPY server/db/schema.sql ./server/db/schema.sql
 
 # NEXT_PUBLIC_* é embutida no bundle do browser, então precisa existir durante
 # o build. Para trocar a URL da API:
@@ -56,9 +69,12 @@ ENV NODE_ENV=production \
 COPY --from=builder --chown=node:node /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+# Schema SQLite compartilhado com a API Python (aplicado por db.ts no boot).
+COPY --from=builder --chown=node:node /app/server/db ./server/db
 
-# Diretório de cache de prerender precisa ser gravável pelo usuário `node`.
-RUN mkdir -p .next && chown node:node .next
+# Diretório de cache de prerender e diretório do SQLite precisam ser graváveis
+# pelo usuário `node` (o BFF cria o banco no primeiro boot).
+RUN mkdir -p .next data && chown node:node .next data
 
 USER node
 

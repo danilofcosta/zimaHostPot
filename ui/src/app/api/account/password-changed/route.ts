@@ -3,8 +3,6 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/server/db";
 import { getRequestSession } from "@/lib/server/session";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Called after the browser successfully changes the password through Better
  * Auth (/api/auth/change-password). Better Auth owns the credential update and

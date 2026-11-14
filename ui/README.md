@@ -58,6 +58,7 @@ browser ──▶ /api/auth/*        Better Auth (cookie de sessão)
 Com Docker Compose (recomendado), a partir da raiz do repositório:
 
 ```bash
+cp .env.example .env   # preencha API_KEY, BETTER_AUTH_SECRET e a senha inicial
 docker compose up -d --build
 # painel em http://<ip-do-zimaos>:8080
 ```

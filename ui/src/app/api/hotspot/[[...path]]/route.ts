@@ -1,7 +1,5 @@
 import { proxyToBackend } from "@/lib/server/proxy";
 
-export const dynamic = "force-dynamic";
-
 async function handler(
   request: Request,
   context: { params: Promise<{ path?: string[] }> },
