@@ -1,0 +1,35 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Zima Hotspot · Painel de controle",
+  description:
+    "Crie, ligue, desligue e acompanhe o hotspot Wi-Fi do dispositivo em tempo real.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#06080c",
+  colorScheme: "dark",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="pt-BR"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full">{children}</body>
+    </html>
+  );
+}
