@@ -17,7 +17,10 @@ import { hashPassword } from "better-auth/crypto";
 import { getDatabase } from "./db";
 
 const DEFAULT_USERNAME = "casaos";
-const DEFAULT_PASSWORD = "casaosos";
+// Sem INITIAL_ADMIN_PASSWORD no ambiente, a conta nasce com "admin" e o
+// primeiro login obriga a troca (ver mustChangePassword). O compose também
+// injeta "admin" como padrão.
+const DEFAULT_PASSWORD = "admin";
 
 let inFlight: Promise<void> | null = null;
 
@@ -43,17 +46,19 @@ export async function ensureInitialAdmin(): Promise<void> {
     const username = (process.env.INITIAL_ADMIN_USERNAME || DEFAULT_USERNAME)
       .trim()
       .toLowerCase();
-    const password = process.env.INITIAL_ADMIN_PASSWORD || DEFAULT_PASSWORD;
+    const password = (
+      process.env.INITIAL_ADMIN_PASSWORD || DEFAULT_PASSWORD
+    ).trim() || DEFAULT_PASSWORD;
 
-    if (password.length < 8) {
+    // A senha inicial pode ser curta (o padrão é "admin"), mas o primeiro
+    // login continua obrigando a troca por uma senha de 12+ caracteres.
+    if (password.length < 12) {
       console.warn(
-        "[bootstrap] INITIAL_ADMIN_PASSWORD is shorter than 8 characters; keeping the default.",
+        "[bootstrap] INITIAL_ADMIN_PASSWORD has fewer than 12 characters; the first login must set a stronger password.",
       );
     }
 
-    const effectivePassword =
-      password.length >= 8 ? password : DEFAULT_PASSWORD;
-    const passwordHash = await hashPassword(effectivePassword);
+    const passwordHash = await hashPassword(password);
     const now = Date.now();
     const userId = randomUUID();
     const accountId = randomUUID();

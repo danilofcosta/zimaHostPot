@@ -357,11 +357,46 @@ socket `/run/dbus/system_bus_socket` presente.
 
 ```bash
 # na raiz do projeto
-cp .env.example .env
-# edite .env: API_KEY, BETTER_AUTH_SECRET, HOTSPOT_ADMIN_PASSWORD,
-# CORS_ORIGINS e (opcional) DEFAULT_INTERFACE
+./start.sh            # Linux/ZimaOS/macOS
+.\start.ps1           # Windows (PowerShell)
+```
 
-docker compose up -d --build
+> Se `./start.sh` responder "permission denied", rode `sh start.sh`. No Windows,
+> se o PowerShell bloquear scripts, use
+> `powershell -ExecutionPolicy Bypass -File .\start.ps1`.
+
+Não é preciso criar o `.env` na mão. O `start.sh`/`start.ps1` gera o arquivo
+automaticamente quando ele não existe, com estes padrões:
+
+| Variável | Padrão gerado |
+| --- | --- |
+| `API_KEY` | 32 bytes aleatórios |
+| `BETTER_AUTH_SECRET` | 32 bytes aleatórios |
+| `CORS_ORIGINS` | `http://<ip-do-servidor>:8080` + `localhost` |
+| `NEXT_PUBLIC_API_URL` | `http://<ip-do-servidor>:6565` |
+| `HOTSPOT_ADMIN_PASSWORD` | `admin` (troca obrigatória no 1º login) |
+| `DEFAULT_INTERFACE` | `wlan0` |
+
+O IP é o da interface com rota padrão; use `HOST_IP=192.168.0.10 ./start.sh`
+(ou `$env:HOST_IP = "192.168.0.10"; .\start.ps1`) para forçar outro. O login
+inicial é `casaos` / `admin`.
+
+Para gerar apenas o `.env` (sem subir os containers):
+
+```bash
+./scripts/init-env.sh          # Linux/ZimaOS/macOS
+.\scripts\init-env.ps1         # Windows
+```
+
+O `.env` existente nunca é sobrescrito; para regenerá-lo (novos segredos):
+
+```bash
+./start.sh --force
+```
+
+Depois disso, para acompanhar os containers:
+
+```bash
 docker compose logs -f
 ```
 

@@ -24,8 +24,8 @@ services:
       PORT: "6565"
       ENVIRONMENT: production
       # Produção exige chave e CORS explícito (ver server/core/config.py).
-      # Preencha o .env da raiz a partir do .env.example.
-      API_KEY: ${API_KEY:?Defina API_KEY no arquivo .env da raiz}
+      # Rode ./start.sh (ou .\start.ps1) para gerar o .env automaticamente.
+      API_KEY: ${API_KEY:?Rode ./start.sh (ou .\start.ps1) para criar o .env com uma API_KEY aleatória}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
       DEFAULT_INTERFACE: ${DEFAULT_INTERFACE:-wlan0}
       # Socket do system bus do host, usado pelo nmcli para falar com o
@@ -75,8 +75,9 @@ services:
       - "8080:80"
 
     environment:
-      # Segredo do Better Auth. Sem ele a UI usaria o valor de desenvolvimento.
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Defina BETTER_AUTH_SECRET no arquivo .env da raiz}
+      # Segredo do Better Auth. Rode ./start.sh (ou .\start.ps1) para gerar o
+      # .env com um segredo aleatório.
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Rode ./start.sh (ou .\start.ps1) para criar o .env com um BETTER_AUTH_SECRET aleatório}
       # Opcional: define a URL pública do painel. Vazio = deriva do host da
       # requisição, o que funciona por qualquer IP da LAN.
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
@@ -89,7 +90,9 @@ services:
       HOTSPOT_API_URL: ${HOTSPOT_API_URL:-http://host.docker.internal:6565}
       DATABASE_PATH: /app/data/database.db
       INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-casaos}
-      INITIAL_ADMIN_PASSWORD: ${HOTSPOT_ADMIN_PASSWORD:-}
+      # Sem HOTSPOT_ADMIN_PASSWORD no .env, a conta nasce com "admin" e o
+      # primeiro login obriga a troca da senha.
+      INITIAL_ADMIN_PASSWORD: ${HOTSPOT_ADMIN_PASSWORD:-admin}
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
