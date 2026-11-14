@@ -1,0 +1,70 @@
+# syntax=docker/dockerfile:1
+
+# Imagem da UI (Next.js 16 em modo standalone).
+# O contexto de build é a raiz do repositório (ver compose.yml), por isso os
+# caminhos começam com `ui/`.
+
+ARG NODE_VERSION=24-slim
+
+# ---------- dependências ----------
+FROM node:${NODE_VERSION} AS deps
+
+WORKDIR /app
+
+# Copia só os manifests para aproveitar o cache de layers.
+COPY ui/package.json ui/package-lock.json ./
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+
+# ---------- build ----------
+FROM node:${NODE_VERSION} AS builder
+
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY ui/ ./
+
+# NEXT_PUBLIC_* é embutida no bundle do browser, então precisa existir durante
+# o build. Para trocar a URL da API:
+#   docker build -f Dockerfile.ui --build-arg NEXT_PUBLIC_API_URL=... .
+# Também é possível alterar a URL em runtime pelo botão "Configurações" da UI.
+ARG NEXT_PUBLIC_API_URL=http://localhost:6565
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+
+RUN npm run build
+
+# ---------- runtime ----------
+FROM node:${NODE_VERSION} AS runner
+
+WORKDIR /app
+
+# `output: "standalone"` (next.config.ts) gera um server.js mínimo que só
+# precisa dos arquivos copiados abaixo.
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 \
+    PORT=80
+
+# O compose publica 8080:80. O Docker libera portas < 1024 para usuários não
+# root por padrão (net.ipv4.ip_unprivileged_port_start=0); se o runtime não
+# fizer isso, troque PORT/EXPOSE e o mapeamento no compose para 3000.
+
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+
+# Diretório de cache de prerender precisa ser gravável pelo usuário `node`.
+RUN mkdir -p .next && chown node:node .next
+
+USER node
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT || 80}/`).then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+
+CMD ["node", "server.js"]

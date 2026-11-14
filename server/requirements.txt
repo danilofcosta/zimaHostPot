@@ -1,0 +1,4 @@
+# Runtime dependencies. Pinned so a rebuild of the image cannot silently pick
+# a new, untested release of FastAPI or its transitive dependencies.
+fastapi[standard]==0.162.5
+python-dotenv==1.2.4

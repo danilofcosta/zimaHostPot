@@ -1,0 +1,44 @@
+# Git / editores
+.git
+.gitignore
+**/.git
+**/.gitignore
+.vscode
+.idea
+
+# Python local
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Segredos e configuração local (o compose injeta via env_file)
+.env
+**/.env
+
+# Configuração persistida do hotspot (contém a senha do Wi-Fi).
+# Fica em um volume do compose, nunca dentro da imagem.
+server/data
+data
+
+# A UI tem imagem própria (Dockerfile.ui). Dependências e artefatos locais não
+# entram no contexto: são instalados/gerados dentro do build.
+ui/node_modules
+ui/.next
+ui/out
+ui/build
+ui/.env
+ui/.env.*
+!ui/.env.example
+ui/*.tsbuildinfo
+
+# Script antigo, substituído pelo server/
+hotspot.py
+
+# Documentação não é necessária dentro da imagem
+**/*.md

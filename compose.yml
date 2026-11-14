@@ -1,0 +1,73 @@
+services:
+  zima-hotspot_server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: zima-hotspot:latest
+    container_name: zima-hotspot
+
+    restart: unless-stopped
+
+    # O nmcli controla o NetworkManager do HOST. Com `network_mode: host` o
+    # container enxerga as interfaces reais (wlan0 etc.) e a API fica exposta
+    # direto na porta 6565 do ZimaOS. Não use `ports` junto com este modo.
+    network_mode: host
+
+    # Carrega PORT, API_KEY, CORS_ORIGINS, DEFAULT_INTERFACE etc.
+    # Crie a partir de server/.env.example caso ainda não exista.
+    env_file:
+      - ./server/.env
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: "6565"
+      ENVIRONMENT: production
+      # Socket do system bus do host, usado pelo nmcli para falar com o
+      # NetworkManager que roda no ZimaOS.
+      DBUS_SYSTEM_BUS_ADDRESS: unix:path=/run/dbus/system_bus_socket
+
+    volumes:
+      # Monta o diretório inteiro (e não só o arquivo do socket) para
+      # sobreviver a reinícios do dbus/NetworkManager no host.
+      - /run/dbus:/run/dbus
+      # Leases do dnsmasq do NetworkManager, usados para descobrir o hostname
+      # dos clientes. Somente leitura: quem gerencia o DHCP é o host.
+      - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
+      - /run/NetworkManager:/run/NetworkManager:ro
+      # Configuração do hotspot (SSID, senha, banda, canal...) em JSON.
+      # O arquivo fica no host para sobreviver a rebuilds da imagem.
+      - ./server/data:/app/data
+
+    # O nmcli precisa ser autorizado pelo polkit/NetworkManager do host.
+    # Rodar como root é o que faz o `sudo` do host deixar de ser necessário.
+    user: "0:0"
+    # Se o polkit do host negar o nmcli mesmo como root, descomente a linha
+    # abaixo (é mais permissivo que o necessário):
+    # privileged: true
+
+    # Reforço para operações de rede; o NetworkManager do host continua sendo
+    # quem executa a configuração privilegiada.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+  zima-hotspot_ui:
+    build:
+      context: .
+      dockerfile: Dockerfile.ui
+      args:
+        # NEXT_PUBLIC_* entra no bundle do browser durante o build, não em
+        # runtime. Para acessar a API de outra máquina, use o IP do host aqui
+        # ou troque a URL pelo botão "Configurações" do painel.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:6565}
+
+    image: zima-hotspot-ui:latest
+    container_name: zima-hotspot-ui
+
+    restart: unless-stopped
+
+    ports:
+      - "8080:80"
+
+    # Sem env_file do server/: a UI não lê segredos da API em runtime, e o
+    # `PORT=6565` do server/.env sobrescreveria a porta 80 da imagem.
