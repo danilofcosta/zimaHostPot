@@ -211,6 +211,77 @@ export function SystemPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <Panel
+          title="Máquina detectada"
+          description="Identidade lida do firmware (DMI/device-tree), SO e CPU."
+        >
+          <dl className="grid grid-cols-2 gap-4">
+            <KeyValue label="Resumo" value={data?.machine.summary ?? "—"} />
+            <KeyValue label="Fabricante" value={data?.machine.vendor ?? "—"} />
+            <KeyValue label="Modelo" value={data?.machine.model ?? "—"} />
+            <KeyValue label="Placa-mãe" value={data?.machine.board ?? "—"} />
+            <KeyValue label="SO" value={data?.machine.os ?? "—"} />
+            <KeyValue label="CPU" value={data?.machine.cpu ?? "—"} />
+            <KeyValue
+              label="Container"
+              value={data ? (data.machine.container ? "sim" : "não") : "—"}
+            />
+            <KeyValue
+              label="ZimaOS"
+              value={data ? (data.machine.is_zimaos ? "sim" : "não") : "—"}
+            />
+          </dl>
+        </Panel>
+
+        <Panel
+          title="Placa Wi-Fi"
+          description="Adaptadores encontrados via sysfs, nmcli e iw."
+        >
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={data?.wifi.present ? "success" : "muted"}>
+                {data?.wifi.present ? "detectada" : "não detectada"}
+              </Badge>
+              <span className="text-xs text-zinc-400">
+                {data?.wifi.summary ?? "—"}
+              </span>
+            </div>
+            {(data?.wifi.interfaces ?? []).length === 0 ? (
+              <p className="text-xs text-zinc-500">
+                Nenhuma interface Wi-Fi com driver ativo.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {data?.wifi.interfaces.map((iface) => (
+                  <div
+                    key={iface.name}
+                    className="rounded-lg border border-white/[0.07] bg-black/20 px-3.5 py-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs text-zinc-200">
+                        {iface.name}
+                      </span>
+                      <Badge tone="neutral">{iface.bus ?? "—"}</Badge>
+                    </div>
+                    <p className="mt-1 text-[0.7rem] text-zinc-400">
+                      {iface.model ?? "Modelo não identificado"}
+                    </p>
+                    <p className="mt-0.5 font-mono text-[0.64rem] text-zinc-600">
+                      driver: {iface.driver ?? "—"}
+                      {iface.vendor_id ? ` · ${iface.vendor_id}` : ""}
+                      {iface.device_id
+                        ? `:${iface.device_id.replace("0x", "")}`
+                        : ""}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Ferramentas de rede" description="Disponibilidade real no PATH do container.">
           <div className="space-y-2">
             <ToolRow name="nmcli" available={Boolean(data?.backend.nmcli)} />

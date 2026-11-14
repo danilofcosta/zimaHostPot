@@ -457,6 +457,40 @@ export interface SystemInfo {
   architecture: string;
   python: string;
   environment: string;
+  machine: {
+    hostname: string;
+    vendor: string | null;
+    model: string | null;
+    board: string | null;
+    os: string;
+    os_version: string | null;
+    kernel: string;
+    architecture: string;
+    cpu: string | null;
+    container: boolean;
+    is_zimaos: boolean;
+    summary: string;
+  };
+  wifi: {
+    present: boolean;
+    count: number;
+    interfaces: Array<{
+      name: string;
+      driver: string | null;
+      bus: string | null;
+      vendor_id: string | null;
+      device_id: string | null;
+      model: string | null;
+    }>;
+    controllers: Array<{
+      slot: string;
+      vendor_id: string | null;
+      device_id: string | null;
+      driver: string | null;
+      model: string | null;
+    }>;
+    summary: string;
+  };
   uptime_seconds: number | null;
   memory: {
     total_bytes: number;
