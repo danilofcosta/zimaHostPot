@@ -24,9 +24,11 @@ services:
       PORT: "6565"
       ENVIRONMENT: production
       # Produção exige chave e CORS explícito (ver server/core/config.py).
-      # Rode ./start.sh (ou .\start.ps1) para gerar o .env automaticamente.
-      API_KEY: ${API_KEY:?Rode ./start.sh (ou .\start.ps1) para criar o .env com uma API_KEY aleatória}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      # Sem .env, o entrypoint gera API_KEY/BETTER_AUTH_SECRET/CORS_ORIGINS em
+      # ./server/data/runtime.env (compartilhado com a UI). Variáveis da stack
+      # ou do .env sempre vencem.
+      API_KEY: ${API_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       DEFAULT_INTERFACE: ${DEFAULT_INTERFACE:-wlan0}
       # Socket do system bus do host, usado pelo nmcli para falar com o
       # NetworkManager que roda no ZimaOS.
@@ -75,9 +77,9 @@ services:
       - "8080:80"
 
     environment:
-      # Segredo do Better Auth. Rode ./start.sh (ou .\start.ps1) para gerar o
-      # .env com um segredo aleatório.
-      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?Rode ./start.sh (ou .\start.ps1) para criar o .env com um BETTER_AUTH_SECRET aleatório}
+      # Segredo do Better Auth. Sem .env, o entrypoint gera um segredo
+      # aleatório em ./server/data/runtime.env (mesmo arquivo da API).
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       # Opcional: define a URL pública do painel. Vazio = deriva do host da
       # requisição, o que funciona por qualquer IP da LAN.
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
@@ -90,9 +92,9 @@ services:
       HOTSPOT_API_URL: ${HOTSPOT_API_URL:-http://host.docker.internal:6565}
       DATABASE_PATH: /app/data/database.db
       INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-casaos}
-      # Sem HOTSPOT_ADMIN_PASSWORD no .env, a conta nasce com "admin" e o
-      # primeiro login obriga a troca da senha.
-      INITIAL_ADMIN_PASSWORD: ${HOTSPOT_ADMIN_PASSWORD:-admin}
+      # Vazio = o entrypoint usa HOTSPOT_ADMIN_PASSWORD do runtime.env
+      # (padrão: admin, com troca obrigatória no primeiro login).
+      INITIAL_ADMIN_PASSWORD: ${HOTSPOT_ADMIN_PASSWORD:-}
 
     extra_hosts:
       - "host.docker.internal:host-gateway"

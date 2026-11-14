@@ -377,6 +377,23 @@ automaticamente quando ele não existe, com estes padrões:
 | `HOTSPOT_ADMIN_PASSWORD` | `admin` (troca obrigatória no 1º login) |
 | `DEFAULT_INTERFACE` | `wlan0` |
 
+O `.env` também é **opcional**: `docker compose up -d --build` (ou uma stack
+implantada pelo Portainer/ZimaOS App) funciona sem ele. Nesse caso, no primeiro
+boot o entrypoint dos containers gera `server/data/runtime.env` com `API_KEY`,
+`BETTER_AUTH_SECRET`, `CORS_ORIGINS`, `HOTSPOT_ADMIN_PASSWORD=admin` e
+`DEFAULT_INTERFACE=wlan0`. O arquivo fica no volume compartilhado, então a API
+e a UI usam exatamente os mesmos segredos. Variáveis definidas na stack ou no
+`.env` sempre vencem o `runtime.env`.
+
+Para trocar os segredos gerados automaticamente, apague
+`server/data/runtime.env` e suba a stack novamente (isso **não** apaga o banco
+nem o histórico).
+
+> Em stacks (Portainer/ZimaOS App), atualize o `compose.yml` e recrie os
+> containers com rebuild (`docker compose up -d --build` ou "Re-pull image and
+> redeploy"). Os entrypoints que geram o `runtime.env` fazem parte das imagens,
+> então uma stack apenas reiniciada com imagens antigas continua falhando.
+
 O IP é o da interface com rota padrão; use `HOST_IP=192.168.0.10 ./start.sh`
 (ou `$env:HOST_IP = "192.168.0.10"; .\start.ps1`) para forçar outro. O login
 inicial é `casaos` / `admin`.

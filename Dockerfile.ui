@@ -76,6 +76,11 @@ COPY --from=builder --chown=node:node /app/server/db ./server/db
 # pelo usuário `node` (o BFF cria o banco no primeiro boot).
 RUN mkdir -p .next data && chown node:node .next data
 
+# Segredos compartilhados com a API quando a stack sobe sem `.env` (ex.:
+# Portainer/ZimaOS App). O arquivo fica no volume ./server/data.
+COPY scripts/runtime-env.sh scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod 0755 /usr/local/bin/runtime-env.sh /usr/local/bin/docker-entrypoint.sh
+
 USER node
 
 EXPOSE 80
@@ -83,4 +88,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT || 80}/`).then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "server.js"]

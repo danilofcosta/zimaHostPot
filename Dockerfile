@@ -39,6 +39,11 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # `server/.env` fica de fora via .dockerignore; use variáveis de ambiente.
 COPY server/ /app/
 
+# Gera os segredos compartilhados com a UI em /app/data/runtime.env quando a
+# stack sobe sem `.env` (ex.: deploy pelo Portainer/ZimaOS App).
+COPY scripts/runtime-env.sh scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod 0755 /usr/local/bin/runtime-env.sh /usr/local/bin/docker-entrypoint.sh
+
 EXPOSE 6565
 
 # O /health responde mesmo quando o nmcli está indisponível (status "degraded"),
@@ -46,4 +51,5 @@ EXPOSE 6565
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD ["python", "-c", "import os, sys, urllib.request; port = os.getenv('PORT', '6565'); sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/health', timeout=4).status == 200 else 1)"]
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "-u", "main.py"]
