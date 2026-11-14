@@ -43,6 +43,7 @@ export const CHANNEL_OPTIONS: Record<
     { value: "153", label: "Canal 153" },
     { value: "157", label: "Canal 157" },
     { value: "161", label: "Canal 161" },
+    { value: "165", label: "Canal 165" },
   ],
 };
 

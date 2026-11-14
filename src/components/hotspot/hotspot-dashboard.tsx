@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useToast } from "@/components/ui/toast";
-import { useApiConfig, type ApiConfig } from "@/hooks/use-api-config";
 import { useHotspot, type StatusQuery } from "@/hooks/use-hotspot";
+import { useHotspotClients } from "@/hooks/use-hotspot-clients";
 import { HotspotApi } from "@/lib/api";
 import {
   configInputFromForm,
@@ -15,9 +15,10 @@ import {
   validateStopValues,
   type HotspotFormValues,
 } from "@/lib/hotspot-form";
+import type { WifiChannelAnalysis } from "@/lib/types";
 import { describeError } from "@/lib/utils";
 
-import { ApiSettingsDialog } from "./api-settings-dialog";
+import { ClientsPanel } from "./clients-panel";
 import { ConfirmDialog } from "./confirm-dialog";
 import { ConnectionDetails } from "./connection-details";
 import { ControlPanel } from "./control-panel";
@@ -33,11 +34,7 @@ function toQuery(values: HotspotFormValues): StatusQuery {
 }
 
 export function HotspotDashboard() {
-  const { config, saveConfig } = useApiConfig();
-  const api = useMemo(
-    () => new HotspotApi(config.baseUrl, config.apiKey),
-    [config.baseUrl, config.apiKey],
-  );
+  const api = useMemo(() => new HotspotApi(), []);
 
   const [form, setForm] = useState<HotspotFormValues>(() => ({
     ...HOTSPOT_FORM_DEFAULTS,
@@ -45,10 +42,17 @@ export function HotspotDashboard() {
   const [query, setQuery] = useState<StatusQuery>(() =>
     toQuery(HOTSPOT_FORM_DEFAULTS),
   );
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [analysis, setAnalysis] = useState<WifiChannelAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const hotspot = useHotspot(api, query);
+  const clients = useHotspotClients(
+    api,
+    query.interfaceName,
+    hotspot.status?.active ?? false,
+  );
   const toast = useToast();
 
   // Restaura a última configuração salva no servidor (SSID, senha, interface,
@@ -59,7 +63,7 @@ export function HotspotDashboard() {
 
     void (async () => {
       try {
-        const saved = await api.getConfig(controller.signal);
+        const saved = await api.getConfig(true, controller.signal);
         if (cancelled || saved.is_default) {
           return;
         }
@@ -78,6 +82,12 @@ export function HotspotDashboard() {
   }, [api]);
 
   const updateForm = useCallback((patch: Partial<HotspotFormValues>) => {
+    // A análise vale para a interface que foi escaneada; ao trocá-la, os
+    // resultados antigos deixam de ser confiáveis.
+    if (patch.interface !== undefined) {
+      setAnalysis(null);
+      setAnalysisError(null);
+    }
     setForm((current) => ({ ...current, ...patch }));
   }, []);
 
@@ -227,16 +237,6 @@ export function HotspotDashboard() {
     }
   };
 
-  const handleSaveApiConfig = (next: ApiConfig) => {
-    const saved = saveConfig(next);
-    setSettingsOpen(false);
-    toast.push({
-      tone: "info",
-      title: "Configurações salvas",
-      description: `Conectando em ${saved.baseUrl}.`,
-    });
-  };
-
   const handlePersistConfig = async () => {
     const validation = validateHotspotForm(form);
     if (validation) {
@@ -264,9 +264,25 @@ export function HotspotDashboard() {
     }
   };
 
+  const handleAnalyzeChannels = async () => {
+    setAnalyzing(true);
+    setAnalysisError(null);
+
+    try {
+      const result = await api.analyzeChannels(
+        form.interface.trim() || undefined,
+      );
+      setAnalysis(result);
+    } catch (error) {
+      setAnalysisError(describeError(error));
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <>
-      <div className="relative isolate min-h-screen">
+      <div className="relative isolate">
         <div
           aria-hidden="true"
           className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
@@ -275,12 +291,10 @@ export function HotspotDashboard() {
           <div className="absolute left-[-16%] top-1/3 h-[26rem] w-[26rem] rounded-full bg-sky-500/[0.06] blur-[130px]" />
         </div>
 
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+        <div className="flex flex-col gap-6">
           <DashboardHeader
             health={hotspot.health}
             healthChecked={hotspot.healthChecked}
-            baseUrl={config.baseUrl}
-            onOpenSettings={() => setSettingsOpen(true)}
           />
 
           <StatusCard
@@ -300,6 +314,12 @@ export function HotspotDashboard() {
               onCreate={handleCreate}
               onSave={handlePersistConfig}
               pending={hotspot.pending}
+              analysis={analysis}
+              analyzing={analyzing}
+              analysisError={analysisError}
+              onAnalyzeChannels={() => {
+                void handleAnalyzeChannels();
+              }}
             />
 
             <div className="flex flex-col gap-6">
@@ -316,19 +336,22 @@ export function HotspotDashboard() {
             </div>
           </div>
 
+          <ClientsPanel
+            active={hotspot.status?.active ?? false}
+            interfaceName={query.interfaceName}
+            clients={clients.data}
+            loading={clients.loading}
+            error={clients.error}
+            updatedAt={clients.updatedAt}
+            onRefresh={clients.refresh}
+          />
+
           <footer className="flex flex-col items-center justify-between gap-2 border-t border-white/[0.06] pt-5 text-[0.7rem] text-zinc-600 sm:flex-row">
             <p>Zima Hotspot · status atualizado automaticamente a cada 5 s</p>
-            <p className="font-mono">API: {config.baseUrl}</p>
+            <p className="font-mono">acesso autenticado via BFF</p>
           </footer>
         </div>
       </div>
-
-      <ApiSettingsDialog
-        open={settingsOpen}
-        config={config}
-        onClose={() => setSettingsOpen(false)}
-        onSave={handleSaveApiConfig}
-      />
 
       <ConfirmDialog
         open={confirmOpen}

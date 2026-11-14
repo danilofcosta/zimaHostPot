@@ -17,7 +17,10 @@ import {
   validateHotspotForm,
   type HotspotFormValues,
 } from "@/lib/hotspot-form";
+import type { WifiChannelAnalysis } from "@/lib/types";
 import { CARD_CLASS, cn, generatePassword } from "@/lib/utils";
+
+import { ChannelAnalysis } from "./channel-analysis";
 
 interface HotspotFormProps {
   values: HotspotFormValues;
@@ -25,6 +28,10 @@ interface HotspotFormProps {
   onCreate: () => void;
   onSave: () => void;
   pending: HotspotAction | null;
+  analysis: WifiChannelAnalysis | null;
+  analyzing: boolean;
+  analysisError: string | null;
+  onAnalyzeChannels: () => void;
 }
 
 export function HotspotForm({
@@ -33,6 +40,10 @@ export function HotspotForm({
   onCreate,
   onSave,
   pending,
+  analysis,
+  analyzing,
+  analysisError,
+  onAnalyzeChannels,
 }: HotspotFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -233,6 +244,16 @@ export function HotspotForm({
             </select>
           </Field>
         </div>
+
+        <ChannelAnalysis
+          band={values.band}
+          channel={values.channel}
+          analysis={analysis}
+          loading={analyzing}
+          error={analysisError}
+          onAnalyze={onAnalyzeChannels}
+          onUseChannel={(next) => update({ channel: String(next) })}
+        />
 
         <button
           type="button"

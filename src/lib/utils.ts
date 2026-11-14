@@ -53,6 +53,45 @@ export function formatTime(value: Date | null): string {
   }).format(value);
 }
 
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ["year", 365 * 24 * 60 * 60],
+  ["month", 30 * 24 * 60 * 60],
+  ["day", 24 * 60 * 60],
+  ["hour", 60 * 60],
+  ["minute", 60],
+  ["second", 1],
+];
+
+const relativeFormatter = new Intl.RelativeTimeFormat("pt-BR", {
+  numeric: "auto",
+});
+
+export function formatRelativeTime(
+  value: string | Date | null | undefined,
+): string {
+  if (!value) {
+    return "—";
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return typeof value === "string" ? value : "—";
+  }
+
+  const seconds = Math.round((date.getTime() - Date.now()) / 1000);
+  if (Math.abs(seconds) < 45) {
+    return "agora";
+  }
+
+  for (const [unit, size] of RELATIVE_UNITS) {
+    if (Math.abs(seconds) >= size || unit === "second") {
+      return relativeFormatter.format(Math.round(seconds / size), unit);
+    }
+  }
+
+  return "agora";
+}
+
 export function generatePassword(length = 16): string {
   const alphabet =
     "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*";

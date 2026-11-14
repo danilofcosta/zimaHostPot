@@ -1,23 +1,15 @@
-import {
-  ExternalLinkIcon,
-  SettingsIcon,
-  WifiIcon,
-} from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+
+import { QrCodeIcon, WifiIcon } from "@/components/icons";
 import type { HealthResponse } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface DashboardHeaderProps {
   health: HealthResponse | null;
   healthChecked: boolean;
-  baseUrl: string;
-  onOpenSettings: () => void;
 }
 
-function HealthPill({
-  health,
-  healthChecked,
-}: Pick<DashboardHeaderProps, "health" | "healthChecked">) {
+function HealthPill({ health, healthChecked }: DashboardHeaderProps) {
   if (!health && !healthChecked) {
     return (
       <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] font-medium text-zinc-400">
@@ -31,7 +23,7 @@ function HealthPill({
     return (
       <span
         className="inline-flex items-center gap-2 rounded-full border border-red-500/25 bg-red-500/[0.08] px-3 py-1.5 text-[0.68rem] font-medium text-red-300"
-        title="Não foi possível consultar /health. Verifique a URL da API nas configurações."
+        title="Não foi possível consultar a API do hotspot. Verifique os containers."
       >
         <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
         API offline
@@ -66,12 +58,7 @@ function HealthPill({
   );
 }
 
-export function DashboardHeader({
-  health,
-  healthChecked,
-  baseUrl,
-  onOpenSettings,
-}: DashboardHeaderProps) {
+export function DashboardHeader({ health, healthChecked }: DashboardHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
@@ -95,23 +82,13 @@ export function DashboardHeader({
 
       <div className="flex flex-wrap items-center gap-2">
         <HealthPill health={health} healthChecked={healthChecked} />
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onOpenSettings}
-          icon={<SettingsIcon className="h-4 w-4" />}
-        >
-          <span className="hidden sm:inline">Configurações</span>
-        </Button>
-        <a
-          href={`${baseUrl}/docs`}
-          target="_blank"
-          rel="noreferrer"
+        <Link
+          href="/share"
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 text-xs font-medium text-zinc-100 transition hover:border-white/20 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
         >
-          <ExternalLinkIcon className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">API Docs</span>
-        </a>
+          <QrCodeIcon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Compartilhar</span>
+        </Link>
       </div>
     </header>
   );

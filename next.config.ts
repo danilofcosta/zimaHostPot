@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
+  // better-sqlite3 is a native module: keep it out of the bundler and load it
+  // from node_modules at runtime (the standalone output copies it).
+  serverExternalPackages: ["better-sqlite3"],
   turbopack: {
     rules: {
       "*.css": {

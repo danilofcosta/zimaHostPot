@@ -1,123 +1,138 @@
 # Zima Hotspot UI
 
-Painel em **Next.js 16 + React 19 + Tailwind CSS 4** para gerenciar o hotspot
-Wi-Fi através da API FastAPI do projeto (`server/`).
+Painel em **Next.js 16 + React 19 + Tailwind CSS 4** para administrar o
+hotspot Wi-Fi e os dispositivos da rede. A UI é também o **BFF** do projeto:
+o navegador fala apenas com a própria origem e o servidor Next.js conversa com
+a API FastAPI (`server/`) usando `X-API-Key`.
 
 ## O que o painel faz
 
-- Mostra o **status em tempo real** do hotspot (ativo/inativo, IP, interface,
-  perfil e estado do dispositivo), com atualização automática a cada 5 s.
-- Exibe a **saúde da API** no topo (`API online`, `nmcli indisponível` ou
-  `API offline`).
-- **Cria e ativa** um hotspot com SSID, senha, interface, perfil, banda
-  (2,4/5 GHz), canal e opção de sudo.
-- **Liga** um perfil existente, **desliga** mantendo o perfil e **remove** o
-  hotspot apagando o perfil do NetworkManager (com confirmação).
-- Gera **senha forte** com um clique.
-- Mostra **QR Code** de conexão, dados de rede (IP, gateway, MAC, faixa DHCP)
-  e botões de copiar SSID, senha e payload do QR Code.
-- Permite configurar **URL da API** e **API key** (`X-API-Key`) em runtime;
-  as preferências ficam no `localStorage`.
+- **Login** com usuário e senha (Better Auth, plugin *username*), sem cadastro
+  público. A conta inicial é criada só no primeiro boot.
+- **Troca de senha obrigatória** no primeiro acesso, com mínimo de 12 caracteres
+  e invalidação das outras sessões.
+- **Dashboard** com status do hotspot, saúde da API, dispositivos, eventos e
+  tráfego (polling de 10 s).
+- **Hotspot**: criar, ligar, desligar, reiniciar e remover; SSID, senha, banda,
+  canal e interface; QR Code e dados reais da conexão.
+- **Dispositivos conectados**: fontes reais (`iw station dump`, `ip neigh`,
+  leases DHCP, `nmcli`), com estado explícito (associado, lease, inativo,
+  desconectado, indisponível).
+- **Dispositivos conhecidos**: histórico persistido, renomear, classificar,
+  anotar, bloquear internet, banir e desconectar.
+- **Monitoramento**: contadores e taxas derivados de amostras reais, com
+  detecção de reset e histórico.
+- **Eventos**: linha do tempo persistida de hotspot, rede, dispositivos e
+  administração.
+- **Compartilhar Wi-Fi**: QR Code e credenciais da configuração salva.
+- **Diagnóstico / Sistema**: checagens do host, `nmcli`, banco e backend.
+- **Configurações**: conta, troca de senha e logout.
+
+## Arquitetura de segurança
+
+```
+browser ──▶ /api/auth/*        Better Auth (cookie de sessão)
+        ──▶ /api/hotspot/*     ┐
+        ──▶ /api/devices/*     │ sessão + gate de troca de senha
+        ──▶ /api/network/*     ├─▶ Python FastAPI  (X-API-Key, server-side)
+        ──▶ /api/monitoring/*  │
+        ──▶ /api/events/*      │
+        ──▶ /api/system/*      ┘
+```
+
+- `API_KEY` e `BETTER_AUTH_SECRET` ficam **somente no servidor**.
+- Toda rota de proxy exige sessão; enquanto `mustChangePassword` for `true`,
+  responde `HTTP 428 password_change_required`.
+- `GET /hotspot/config` mascara a senha por padrão. Apenas Hotspot e
+  Compartilhar pedem `include_password=true`.
 
 ## Requisitos
 
-- Node.js 20+ (recomendado 22).
-- API rodando (por padrão em `http://localhost:6565`).
+- Node.js 24 (a imagem usa `node:24-slim`).
+- API Python em execução (`HOTSPOT_API_URL`).
+- Banco SQLite compartilhado (`DATABASE_PATH`) e o schema em
+  `server/db/schema.sql`.
 
 ## Como rodar
 
-Na pasta `server/`:
+Com Docker Compose (recomendado), a partir da raiz do repositório:
 
 ```bash
-python main.py
+docker compose up -d --build
+# painel em http://<ip-do-zimaos>:8080
 ```
 
-Na pasta `ui/`:
+Localmente:
 
 ```bash
-npm install
+cd ui
+npm ci
+cp .env.example .env.local
 npm run dev
 ```
 
-Abra [http://localhost:3000](http://localhost:3000).
+`.env.local` mínimo:
 
-## Configuração
-
-Crie/edite `.env.local` (ou use o `.env.example`):
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:6565
+```dotenv
+BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_SECRET=<openssl rand -base64 48>
+HOTSPOT_API_URL=http://127.0.0.1:6565
+API_KEY=<a mesma chave da API>
+DATABASE_PATH=../server/data/database.db
 ```
-
-Também é possível trocar a URL e informar a API key pelo botão
-**Configurações** no painel, sem reiniciar o app. A chave só é necessária se
-`API_KEY` estiver definida no servidor.
-
-> `NEXT_PUBLIC_*` é embutida no build. Para produção, defina a variável antes de
-> `npm run build`.
 
 ## Estrutura
 
 ```
 src/
 ├── app/
-│   ├── layout.tsx          # metadata, fonte e tema
-│   ├── page.tsx            # composição da página
-│   └── globals.css         # tema, scrollbar e animações
+│   ├── (auth)/                 # /login e /change-password
+│   ├── (dashboard)/            # layout autenticado + 10 telas
+│   └── api/                    # BFF: auth, conta e proxies
 ├── components/
-│   ├── hotspot/
-│   │   ├── hotspot-dashboard.tsx   # orquestra estado e ações
-│   │   ├── dashboard-header.tsx    # logo, health pill, docs
-│   │   ├── status-card.tsx         # status + polling
-│   │   ├── hotspot-form.tsx        # criação do hotspot
-│   │   ├── control-panel.tsx       # ligar/desligar/remover
-│   │   ├── connection-details.tsx  # QR Code e dados da rede
-│   │   ├── api-settings-dialog.tsx
-│   │   └── confirm-dialog.tsx
-│   ├── ui/
-│   │   ├── button.tsx
-│   │   ├── field.tsx
-│   │   ├── modal.tsx
-│   │   └── toast.tsx
-│   └── icons.tsx
-├── hooks/
-│   ├── use-hotspot.ts       # polling, mutações e erros
-│   ├── use-api-config.ts    # URL/API key persistidas
-│   └── use-toasts.ts
+│   ├── auth/                   # formulários de login e senha
+│   ├── layout/                 # sidebar responsiva e logout
+│   ├── pages/                  # uma composição por tela
+│   ├── hotspot/                # componentes do hotspot
+│   └── ui/                     # botões, cards, campos, toast...
+├── hooks/use-polled-data.ts    # polling com pausa/erro
 └── lib/
-    ├── api.ts               # client tipado da API
-    ├── types.ts             # contratos espelhando o backend
-    ├── hotspot-form.ts      # defaults e validação do formulário
-    └── utils.ts
+    ├── api.ts                  # client same-origin tipado
+    ├── types.ts                # contratos da API
+    ├── auth.ts / auth-client.ts
+    ├── format.ts
+    └── server/                 # db, sessão, proxy, bootstrap
 ```
 
-Fluxo: **componentes → useHotspot → HotspotApi → FastAPI (`/api/v1/hotspot`)**.
+## Endpoints do BFF
 
-## Endpoints usados
-
-| Ação no painel | Requisição |
+| Rota | Destino |
 | --- | --- |
-| Status / polling | `GET /api/v1/hotspot/status` |
-| Saúde | `GET /health` |
-| Criar | `POST /api/v1/hotspot` |
-| Ligar | `POST /api/v1/hotspot/start` |
-| Desligar | `POST /api/v1/hotspot/stop` |
-| Remover | `DELETE /api/v1/hotspot?delete_profile=true` |
+| `/api/auth/[...all]` | Better Auth (login, logout, sessão, senha) |
+| `/api/account/password-changed` | Limpa `mustChangePassword` |
+| `/api/hotspot/...` | `/api/v1/hotspot/...` |
+| `/api/devices/...` | `/api/v1/devices/...` |
+| `/api/network/...` | `/api/v1/network/...` |
+| `/api/monitoring/...` | `/api/v1/monitoring/...` (inclui SSE) |
+| `/api/events/...` | `/api/v1/events/...` |
+| `/api/system/...` | `/api/v1/system/...` |
+| `/api/health` | `/health` da API Python |
 
 ## Scripts
 
 ```bash
 npm run dev     # desenvolvimento (Turbopack)
-npm run build   # build de produção
+npm run build   # build de produção (standalone)
 npm run start   # servir o build
 npm run lint    # ESLint
 ```
 
 ## Observações
 
-- O servidor já libera CORS por padrão (`CORS_ORIGINS=*`). Em produção,
-  restrinja essa variável no backend.
-- Se a UI for servida via HTTPS, a API também precisa estar em HTTPS para
-  evitar bloqueio de mixed content.
-- O `nmcli` só existe em Linux com NetworkManager. Em outros sistemas a API
-  responde `503` e o painel sinaliza `nmcli indisponível`.
+- O navegador nunca chama a API Python diretamente; não existe CORS nem
+  `NEXT_PUBLIC_API_URL` no fluxo.
+- O build gera `.next/standalone`; o `Dockerfile.ui` copia esse diretório e o
+  schema SQLite.
+- `better-sqlite3` é um módulo nativo e está em `serverExternalPackages`.
+- A conta inicial (`casaos` / `casaosos`) só é criada se a tabela `user` estiver
+  vazia; depois disso nunca é recriada nem redefinida.
